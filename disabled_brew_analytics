@@ -1,0 +1,9 @@
+# 编辑配置文件（zsh）
+nano ~/.zshrc
+
+# 添加
+export HOMEBREW_NO_ANALYTICS=1    # 禁用分析数据收集
+export HOMEBREW_NO_ENV_HINTS=1    # 关闭提示信息（可选）
+
+# 重载
+source ~/.zshrc
