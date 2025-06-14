@@ -1,0 +1,56 @@
+#!/bin/bash
+
+if [ $# -lt 2 ]; then
+  echo "Usage: $0 <host> <port> [count]"
+  exit 1
+fi
+
+HOST=$1
+PORT=$2
+COUNT=${3:-5}  # 默认测试5次
+SUCCESS=0
+TIMES=()
+TOTAL_TIME=0
+
+echo "Probing $HOST:$port/tcp"
+
+for ((i=1; i<=$COUNT; i++)); do
+  START=$(gdate +%s.%N)  # 需要安装 coreutils: brew install coreutils
+  
+  # 执行tcping并捕获输出
+  OUTPUT=$(tcping -q -t 2 $HOST $PORT 2>&1)
+  STATUS=$?
+  
+  END=$(gdate +%s.%N)
+  DURATION=$(echo "$END - $START" | bc -l)
+  
+  if [ $STATUS -eq 0 ]; then
+    MS=$(printf "%.2f" $(echo "$DURATION * 1000" | bc -l))
+    TIMES+=($MS)
+    TOTAL_TIME=$(echo "$TOTAL_TIME + $DURATION" | bc -l)
+    printf "Connected to %s:%s: time=%sms protocol=TCP port=%s\n" $HOST $PORT $MS $PORT
+    SUCCESS=$((SUCCESS+1))
+  else
+    printf "Connection to %s:%s failed\n" $HOST $PORT
+  fi
+  
+  sleep 0.5
+done
+
+# 计算统计信息
+LOSS=$(( (COUNT - SUCCESS) * 100 / COUNT ))
+
+if [ $SUCCESS -gt 0 ]; then
+  MIN=$(printf "%.2f" $(echo ${TIMES[@]} | tr ' ' '\n' | sort -n | head -1))
+  MAX=$(printf "%.2f" $(echo ${TIMES[@]} | tr ' ' '\n' | sort -n | tail -1))
+  AVG=$(printf "%.2f" $(echo "$TOTAL_TIME * 1000 / $SUCCESS" | bc -l))
+else
+  MIN=0
+  MAX=0
+  AVG=0
+fi
+
+echo ""
+echo "--- $HOST:$PORT tcping statistics ---"
+printf "%d probes sent, %d successful, %d%% packet loss\n" $COUNT $SUCCESS $LOSS
+printf "round-trip min/avg/max = %.2f/%.2f/%.2f ms\n" $MIN $AVG $MAX
